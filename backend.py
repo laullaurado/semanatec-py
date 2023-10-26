@@ -15,7 +15,7 @@ def inicio():
 
 @app.route("/predict_json", methods=["POST"])
 def predict_json():
-    data = request.json()
+    data = request.json
     X = [[
         float(data["pH"]),
         float(data["sulphates"]),
