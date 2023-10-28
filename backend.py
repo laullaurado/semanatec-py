@@ -1,41 +1,70 @@
 from flask import Flask, request, jsonify
+import numpy as np
+from joblib import load
+from werkzeug.utils import secure_filename
 from flask_cors import CORS
-import joblib
+import os
 
-dt = joblib.load("./static/dt2.joblib")
+#Cargar el modelo
+dt = load('./static/dt2.joblib')
 
-app = Flask(__name__)
-CORS(app)
+#Generar el servidor (Back-end)
+servidorWeb = Flask(__name__)
+CORS(servidorWeb)
 
+#Envio de datos a través de JSON
+@servidorWeb.route('/modelo', methods=['POST'])
+def modelo():
+    #Procesar datos de entrada 
+    contenido = request.json
+    print(contenido)
+    datosEntrada = np.array([
+            contenido['pH'],
+            contenido['sulphates'],
+            contenido['alcohol']
+        ])
+    #Utilizar el modelo
+    resultado=dt.predict(datosEntrada.reshape(1,-1))
+    #Regresar la salida del modelo
+    return jsonify({"Resultado":str(resultado[0])})
 
-@app.route("/hola", methods=["GET"])
-def inicio():
-    return "Hola mundo"
+#Envio de datos a través de Archivos
+@servidorWeb.route('/modeloFile', methods=['POST'])
+def modeloFile():
+    f = request.files['file']
+    filename=secure_filename(f.filename)
+    path=os.path.join(os.getcwd(),'static',filename)
+    f.save(path)
+    file = open(path, "r")
+    
+    for x in file:
+        info=x.split()
+    print(info)
+    datosEntrada = np.array([
+            float(info[0]),
+            float(info[1]),
+            float(info[2])
+        ])
+    #Utilizar el modelo
+    resultado=dt.predict(datosEntrada.reshape(1,-1))
+    #Regresar la salida del modelo
+    return jsonify({"Resultado":str(resultado[0])})
 
+#Envio de datos a través de Forms
+@servidorWeb.route('/modeloForm', methods=['POST'])
+def modeloForm():
+    #Procesar datos de entrada 
+    contenido = request.form
+    
+    datosEntrada = np.array([
+            contenido['pH'],
+            contenido['sulphates'],
+            contenido['alcohol']
+        ])
+    #Utilizar el modelo
+    resultado=dt.predict(datosEntrada.reshape(1,-1))
+    #Regresar la salida del modelo
+    return jsonify({"Resultado":str(resultado[0])})
 
-@app.route("/predict_json", methods=["POST"])
-def predict_json():
-    data = request.json
-    X = [[
-        float(data["pH"]),
-        float(data["sulphates"]),
-        float(data["alcohol"])
-    ]]
-    y_pred = dt.predict(X)
-    return jsonify({"result": y_pred[0]})
-
-
-@app.route("/predict_form", methods=["POST"])
-def predict_form():
-    data = request.form
-    X = [[
-        float(data["pH"]),
-        float(data["sulphates"]),
-        float(data["alcohol"])
-    ]]
-    y_pred = dt.predict(X)
-    return jsonify({"result": y_pred[0]})
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=False, port=8081)
+if __name__ == '__main__':
+    servidorWeb.run(debug=False,host='0.0.0.0',port='8081')
